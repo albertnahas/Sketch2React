@@ -2,6 +2,9 @@
 
 This is a simple sketch‑UI whiteboard application built with React, TypeScript, Vite, and React-Konva.
 
+# Live Demo
+https://sketch2react.netlify.app
+
 ## Features
 - Toolbox sidebar with tools: select, rectangle, circle, arrow, text
 - Click‑and‑drag to draw shapes
