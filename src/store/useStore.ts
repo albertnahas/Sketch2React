@@ -1,0 +1,147 @@
+import { create } from 'zustand';
+
+// Types for shapes
+export type ShapeType = 'rectangle' | 'circle' | 'arrow' | 'text';
+
+export interface BaseShape {
+  id: string;
+  type: ShapeType;
+  x: number;
+  y: number;
+  rotation: number;
+}
+
+export interface RectShape extends BaseShape {
+  type: 'rectangle';
+  width: number;
+  height: number;
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface CircleShape extends BaseShape {
+  type: 'circle';
+  radius: number;
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface ArrowShape extends BaseShape {
+  type: 'arrow';
+  points: number[]; // [x1, y1, x2, y2] relative to x,y
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface TextShape extends BaseShape {
+  type: 'text';
+  text: string;
+  fontSize: number;
+  fill: string;
+}
+
+export type Shape = RectShape | CircleShape | ArrowShape | TextShape;
+
+type Tool = ShapeType | 'select';
+
+interface State {
+  shapes: Shape[];
+  selectedId: string | null;
+  tool: Tool;
+  past: { shapes: Shape[]; selectedId: string | null }[];
+  future: { shapes: Shape[]; selectedId: string | null }[];
+  setTool: (tool: Tool) => void;
+  addShape: (shape: Shape) => void;
+  updateShape: (id: string, attrs: Partial<Omit<Shape, 'id' | 'type'>> & Partial<Pick<Shape, 'text' | 'fontSize' | 'fill'>>) => void;
+  deleteShape: (id: string) => void;
+  setSelectedId: (id: string | null) => void;
+  undo: () => void;
+  redo: () => void;
+  exportJSON: () => void;
+  importJSON: (shapes: Shape[]) => void;
+}
+
+const useStore = create<State>((set, get) => ({
+  shapes: [],
+  selectedId: null,
+  tool: 'select',
+  past: [],
+  future: [],
+
+  setTool: (tool) => set({ tool, selectedId: null }),
+
+  addShape: (shape) => {
+    const { shapes, selectedId, past } = get();
+    set({
+      past: [...past, { shapes: shapes.slice(), selectedId }],
+      shapes: [...shapes, shape],
+      selectedId: shape.id,
+      future: [],
+    });
+  },
+
+  updateShape: (id, attrs) => {
+    const { shapes, selectedId, past } = get();
+    set({
+      past: [...past, { shapes: shapes.slice(), selectedId }],
+      shapes: shapes.map((s) => (s.id === id ? { ...s, ...attrs } : s)),
+      future: [],
+    });
+  },
+
+  deleteShape: (id) => {
+    const { shapes, selectedId, past } = get();
+    set({
+      past: [...past, { shapes: shapes.slice(), selectedId }],
+      shapes: shapes.filter((s) => s.id !== id),
+      selectedId: selectedId === id ? null : selectedId,
+      future: [],
+    });
+  },
+
+  setSelectedId: (id) => set({ selectedId: id }),
+
+  undo: () => {
+    const { past, future, shapes, selectedId } = get();
+    if (past.length === 0) return;
+    const previous = past[past.length - 1];
+    set({
+      shapes: previous.shapes,
+      selectedId: previous.selectedId,
+      past: past.slice(0, -1),
+      future: [{ shapes: shapes.slice(), selectedId }, ...future],
+    });
+  },
+
+  redo: () => {
+    const { past, future, shapes, selectedId } = get();
+    if (future.length === 0) return;
+    const next = future[0];
+    set({
+      shapes: next.shapes,
+      selectedId: next.selectedId,
+      past: [...past, { shapes: shapes.slice(), selectedId }],
+      future: future.slice(1),
+    });
+  },
+
+  exportJSON: () => {
+    const { shapes } = get();
+    const data = JSON.stringify(shapes, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'whiteboard.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  importJSON: (shapes) => {
+    set({ shapes, selectedId: null, past: [], future: [] });
+  },
+}));
+
+export default useStore;
