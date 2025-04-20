@@ -8,6 +8,11 @@ const Toolbar: React.FC = () => {
   const redo = useStore((state) => state.redo);
   const exportJSON = useStore((state) => state.exportJSON);
   const importJSON = useStore((state) => state.importJSON);
+  const convertToReact = useStore((state) => state.convertToReact);
+  const shapes = useStore((state) => state.shapes);
+  const isConverting = useStore((state) => state.isConverting);
+  const showCodePreview = useStore((state) => state.showCodePreview);
+  const setShowCodePreview = useStore((state) => state.setShowCodePreview);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -29,6 +34,16 @@ const Toolbar: React.FC = () => {
       // reset value to allow re-import same file
       e.target.value = '';
     }
+  };
+
+  const handleConvertClick = () => {
+    if (shapes.length > 0) {
+      convertToReact();
+    }
+  };
+
+  const handleTogglePreview = () => {
+    setShowCodePreview(!showCodePreview);
   };
 
   return (
@@ -66,6 +81,21 @@ const Toolbar: React.FC = () => {
           style={{ display: 'none' }}
           onChange={handleFileChange}
         />
+      </div>
+      <hr />
+      <div>
+        <button 
+          onClick={handleConvertClick} 
+          disabled={shapes.length === 0 || isConverting}
+          className={isConverting ? 'loading' : ''}
+        >
+          {isConverting ? 'Converting...' : 'Convert to React'}
+        </button>
+        {showCodePreview && (
+          <button onClick={handleTogglePreview}>
+            {showCodePreview ? 'Hide Preview' : 'Show Preview'}
+          </button>
+        )}
       </div>
     </div>
   );
