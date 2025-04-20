@@ -22,6 +22,9 @@ const Canvas = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [textareaStyle, setTextareaStyle] = useState<React.CSSProperties>({});
+  // local multi-selection and marquee (lasso) state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [marqueeAttrs, setMarqueeAttrs] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   const shapes = useStore((s) => s.shapes);
   const selectedId = useStore((s) => s.selectedId);
@@ -59,23 +62,31 @@ const Canvas = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedId, deleteShape]);
 
-  // attach transformer to selected node
+  // attach transformer to selected node(s) or hide during marquee
   useEffect(() => {
     const stage = stageRef.current;
     const transformer = transformerRef.current;
     if (!stage || !transformer) return;
     const layer = stage.findOne("Layer");
-    if (selectedId) {
-      const selectedNode = layer?.findOne("#" + selectedId);
-      if (selectedNode) {
-        transformer.nodes([selectedNode]);
-        transformer.getLayer()?.batchDraw();
-      }
-    } else {
+    let nodes: Konva.Node[] = [];
+    // hide transformer while drawing marquee
+    if (marqueeAttrs) {
       transformer.nodes([]);
       transformer.getLayer()?.batchDraw();
+      return;
     }
-  }, [selectedId, shapes]);
+    // multi-selection
+    if (selectedIds.length > 0) {
+      nodes = selectedIds
+        .map((id) => layer?.findOne('#' + id))
+        .filter((n): n is Konva.Node => !!n);
+    } else if (selectedId) {
+      const node = layer?.findOne('#' + selectedId);
+      if (node) nodes = [node];
+    }
+    transformer.nodes(nodes);
+    transformer.getLayer()?.batchDraw();
+  }, [selectedId, selectedIds, marqueeAttrs, shapes]);
 
   const getRelativePointerPosition = () => {
     const stage = stageRef.current;
@@ -84,7 +95,17 @@ const Canvas = () => {
   };
 
   const handleMouseDown = (e: any) => {
-    if (tool === "select") return;
+    if (tool === "select") {
+      // start marquee selection on empty canvas
+      if (e.target === e.target.getStage()) {
+        const pos = getRelativePointerPosition();
+        setMarqueeAttrs({ x: pos.x, y: pos.y, width: 0, height: 0 });
+        // clear any existing selection
+        setSelectedIds([]);
+        setSelectedId(null);
+      }
+      return;
+    }
     // only start drawing on empty area
     if (e.target !== e.target.getStage()) return;
     const pos = getRelativePointerPosition();
@@ -113,6 +134,26 @@ const Canvas = () => {
   };
 
   const handleMouseMove = (e: any) => {
+    // update marquee rectangle while dragging in select mode
+    if (marqueeAttrs) {
+      const pos = getRelativePointerPosition();
+      const startX = marqueeAttrs.x;
+      const startY = marqueeAttrs.y;
+      let newX = startX;
+      let newY = startY;
+      let newW = pos.x - startX;
+      let newH = pos.y - startY;
+      if (newW < 0) {
+        newX = startX + newW;
+        newW = Math.abs(newW);
+      }
+      if (newH < 0) {
+        newY = startY + newH;
+        newH = Math.abs(newH);
+      }
+      setMarqueeAttrs({ x: newX, y: newY, width: newW, height: newH });
+      return;
+    }
     if (!isDrawing || !newAttrs) return;
     const pos = getRelativePointerPosition();
     if (tool === "rectangle") {
@@ -137,6 +178,37 @@ const Canvas = () => {
   };
 
   const handleMouseUp = () => {
+    // finalize marquee selection (lasso)
+    if (marqueeAttrs) {
+      const stage = stageRef.current;
+      if (stage) {
+        const layer = stage.findOne("Layer");
+        const rectA = marqueeAttrs;
+        const ids: string[] = [];
+        shapes.forEach((shape) => {
+          const node = layer?.findOne('#' + shape.id) as Konva.Shape;
+          if (node) {
+            const clientRect = node.getClientRect();
+            if (
+              clientRect.x < rectA.x + rectA.width &&
+              clientRect.x + clientRect.width > rectA.x &&
+              clientRect.y < rectA.y + rectA.height &&
+              clientRect.y + clientRect.height > rectA.y
+            ) {
+              ids.push(shape.id);
+            }
+          }
+        });
+        setSelectedIds(ids);
+        if (ids.length === 1) {
+          setSelectedId(ids[0]);
+        } else {
+          setSelectedId(null);
+        }
+      }
+      setMarqueeAttrs(null);
+      return;
+    }
     if (!isDrawing || !newAttrs) return;
     const id = nanoid();
     if (tool === "rectangle") {
@@ -329,6 +401,57 @@ const Canvas = () => {
             }
             return null;
           })}
+          {/* marquee (lasso) drawing */}
+          {marqueeAttrs && (
+            <Rect
+              x={marqueeAttrs.x}
+              y={marqueeAttrs.y}
+              width={marqueeAttrs.width}
+              height={marqueeAttrs.height}
+              fill="rgba(0,0,255,0.1)"
+              stroke="blue"
+              strokeWidth={1}
+              dash={[4, 4]}
+              listening={false}
+            />
+          )}
+          {/* ghost preview for new shapes */}
+          {isDrawing && newAttrs && tool === "rectangle" && (
+            <Rect
+              x={newAttrs.x}
+              y={newAttrs.y}
+              width={newAttrs.width}
+              height={newAttrs.height}
+              fill="rgba(0,0,0,0.1)"
+              stroke="#000"
+              strokeWidth={1}
+              dash={[4, 4]}
+              listening={false}
+            />
+          )}
+          {isDrawing && newAttrs && tool === "circle" && (
+            <Circle
+              x={newAttrs.x}
+              y={newAttrs.y}
+              radius={newAttrs.radius}
+              fill="rgba(0,0,0,0.1)"
+              stroke="#000"
+              strokeWidth={1}
+              dash={[4, 4]}
+              listening={false}
+            />
+          )}
+          {isDrawing && newAttrs && tool === "arrow" && (
+            <Arrow
+              x={newAttrs.x}
+              y={newAttrs.y}
+              points={newAttrs.points}
+              stroke="#000"
+              strokeWidth={1}
+              dash={[4, 4]}
+              listening={false}
+            />
+          )}
           <Transformer ref={transformerRef} />
         </Layer>
       </Stage>
