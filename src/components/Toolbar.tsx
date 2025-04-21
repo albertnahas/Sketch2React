@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import useStore from '../store/useStore';
 
 const Toolbar: React.FC = () => {
@@ -13,6 +13,17 @@ const Toolbar: React.FC = () => {
   const isConverting = useStore((state) => state.isConverting);
   const showCodePreview = useStore((state) => state.showCodePreview);
   const setShowCodePreview = useStore((state) => state.setShowCodePreview);
+  // limit convert-to-react usage to MAX_CONVERTS, persisted in localStorage
+  const MAX_CONVERTS = 6;
+  const [convertCount, setConvertCount] = useState<number>(0);
+  useEffect(() => {
+    // initialize count from localStorage
+    const stored = window.localStorage.getItem('convertCount');
+    if (stored) {
+      const num = parseInt(stored, 10);
+      if (!isNaN(num)) setConvertCount(num);
+    }
+  }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,7 +48,11 @@ const Toolbar: React.FC = () => {
   };
 
   const handleConvertClick = () => {
-    if (shapes.length > 0) {
+    // only convert if shapes exist and under limit
+    if (shapes.length > 0 && convertCount < MAX_CONVERTS) {
+      const next = convertCount + 1;
+      setConvertCount(next);
+      window.localStorage.setItem('convertCount', String(next));
       convertToReact();
     }
   };
@@ -84,9 +99,9 @@ const Toolbar: React.FC = () => {
       </div>
       <hr />
       <div>
-        <button 
-          onClick={handleConvertClick} 
-          disabled={shapes.length === 0 || isConverting}
+        <button
+          onClick={handleConvertClick}
+          disabled={shapes.length === 0 || isConverting || convertCount >= MAX_CONVERTS}
           className={isConverting ? 'loading' : ''}
         >
           {isConverting ? 'Converting...' : 'Convert to React'}
@@ -95,6 +110,12 @@ const Toolbar: React.FC = () => {
           <button onClick={handleTogglePreview}>
             {showCodePreview ? 'Hide Preview' : 'Show Preview'}
           </button>
+        )}
+        {/* show warning when conversion limit is reached */}
+        {convertCount >= MAX_CONVERTS && (
+          <div style={{ color: 'red', marginTop: 4, fontSize: 12 }}>
+            Conversion limit of {MAX_CONVERTS} reached.
+          </div>
         )}
       </div>
     </div>
