@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { generateMockResponse } from "../utils/mockResponse";
 
 // Types for shapes
 export type ShapeType = "rectangle" | "circle" | "arrow" | "text";
@@ -163,77 +164,106 @@ const useStore = create<State>((set, get) => ({
   },
 
   setShowCodePreview: (show) => set({ showCodePreview: show }),
-
   convertToReact: async () => {
     const { shapes } = get();
     if (shapes.length === 0) return;
 
     try {
       set({ isConverting: true, conversionError: null });
+      
+      let result;
+      
+      // Check if an API key is available
+      const apiKey = import.meta.env?.VITE_OPENAI_API_KEY;
+      
+      if (apiKey) {
+        // Use the real OpenAI API
+        const sketchJSON = JSON.stringify(shapes);
+        const messages = [
+          {
+            role: "system",
+            content: `
+You are a UI code assistant. Given a Konva-stage JSON of shapes and text, infer a meaningful user interface layout:
 
-      // 1) Prepare your sketch JSON
-      const sketchJSON = JSON.stringify(shapes);
+• Rectangles become containers or buttons.  
+• Circles become avatars or icons.  
+• Lines become dividers or progress bars.  
+• Text elements become labels, headings, or input placeholders.  
 
-      // 2) Build the chat messages
-      const messages = [
-        {
-          role: "system",
-          content: `
-You are a code assistant. 
-Convert the following Konva-stage JSON into a fully runnable React+TypeScript app.
-Return only valid JSON with this shape:
+Generate a React+TypeScript app that:
+Matches the closest real life use case of the sketch.
+Matches the provided layout as much as possible.
+
+1. Uses semantic HTML elements (<button>, <img>, <input>, <header>, <section>, etc.).  
+2. Assigns valid placeholder images where circles occur.  
+3. Lays out components to match the spatial arrangement of the shapes pixel perfect.  
+
+Return EXACTLY this JSON schema (no extra keys, no commentary):
+\`\`\`json
 {
   "files": {
-    "App.tsx": "...",
-    "shapes.ts": "...",
-    ...
+    "<filename>.tsx": "<string: file contents>",
+    // …
   },
-  "previewHTML": "<div id='root'>...</div>"
-}`.trim(),
-        },
-        { role: "user", content: sketchJSON },
-      ];
-
-      // 3) Call OpenAI Chat Completion
-      const response = await fetch(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            // Make sure you've set VITE_OPENAI_API_KEY in your .env
-            Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+  "previewHTML": "<string: HTML to mount React app>"
+}
+\`\`\`
+          `.trim(),
           },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages,
-            temperature: 0.2,
-            max_tokens: 2000,
-          }),
+          { role: "user", content: sketchJSON },
+        ];
+
+        const response = await fetch(
+          "https://api.openai.com/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              messages,
+              temperature: 0.3,
+              max_tokens: 2500,
+              response_format: {
+                type: "json_schema",
+                json_schema: {
+                  name: "ConvertSketchResponse",
+                  schema: {
+                    type: "object",
+                    properties: {
+                      files: {
+                        type: "object",
+                        additionalProperties: { type: "string" },
+                      },
+                      previewHTML: { type: "string" },
+                    },
+                    required: ["files", "previewHTML"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(
+            `Error: ${response.status} ${response.statusText} - ${errText}`
+          );
         }
-      );
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`OpenAI error ${response.status}: ${errText}`);
+        const { choices } = await response.json();
+        // content is guaranteed valid JSON matching the schema
+        result = JSON.parse(choices[0].message.content);
+      } else {
+        // Use the mock response generator if no API key is available
+        console.log("No API key found, using mock response generator for demonstration");
+        result = await generateMockResponse(shapes);
       }
 
-      const { choices } = await response.json();
-      const aiContent = choices[0].message?.content;
-      if (!aiContent) throw new Error("No content returned from AI");
-
-      // 4) Parse the AI’s JSON response
-      let result: {
-        files: Record<string, string>;
-        previewHTML: string;
-      };
-      try {
-        result = JSON.parse(aiContent);
-      } catch (e) {
-        throw new Error("Failed to parse AI response as JSON: " + aiContent);
-      }
-
-      // 5) Store & show
       set({
         conversionResult: result,
         isConverting: false,

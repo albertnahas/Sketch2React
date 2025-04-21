@@ -46,14 +46,17 @@ const Canvas = () => {
   
   useEffect(() => {
     const handleResize = () => {
-      let width = window.innerWidth - TOOLBAR_WIDTH;
+      const width = window.innerWidth - TOOLBAR_WIDTH;
+      let height = window.innerHeight;
+      
       if (showCodePreview) {
-        width = width / 2; // 50% width when showing code preview
+        // When in preview mode, reduce the height to 60% of the container
+        height = height * 0.6;
       }
       
       setStageSize({
         width,
-        height: window.innerHeight,
+        height,
       });
     };
     
@@ -309,197 +312,209 @@ const Canvas = () => {
       layout
     >
       <motion.div
-        className="whiteboard-container"
-        initial={{ width: '100%' }}
-        animate={{ width: showCodePreview ? '50%' : '100%' }}
-        transition={{ duration: 0.5, ease: "easeInOut" }}
+        className="canvas-content"
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          width: '100%', 
+          height: '100%' 
+        }}
       >
-        <Stage
-          width={stageSize.width}
-          height={stageSize.height}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          ref={stageRef}
+        <motion.div
+          className="whiteboard-container"
+          initial={{ height: '100%' }}
+          animate={{ height: showCodePreview ? '60%' : '100%' }}
+          transition={{ duration: 0.5, ease: "easeInOut" }}
+          style={{ width: '100%' }}
         >
-          <Layer>
-            {shapes.map((shape) => {
-              const commonProps = {
-                key: shape.id,
-                id: shape.id,
-                x: shape.x,
-                y: shape.y,
-                rotation: shape.rotation,
-                draggable: tool === "select",
-                onClick: () => setSelectedId(shape.id),
-                onTap: () => setSelectedId(shape.id),
-                onDragEnd: (e: any) => {
-                  updateShape(shape.id, { x: e.target.x(), y: e.target.y() });
-                },
-              };
-              if (shape.type === "rectangle") {
-                return (
-                  <Rect
-                    {...commonProps}
-                    width={(shape as any).width}
-                    height={(shape as any).height}
-                    fill={(shape as any).fill}
-                    stroke={(shape as any).stroke}
-                    strokeWidth={(shape as any).strokeWidth}
-                    onTransformEnd={(e) => {
-                      const node = e.target;
-                      const scaleX = node.scaleX();
-                      const scaleY = node.scaleY();
-                      const newWidth = (node.width() as number) * scaleX;
-                      const newHeight = (node.height() as number) * scaleY;
-                      node.scaleX(1);
-                      node.scaleY(1);
-                      updateShape(shape.id, {
-                        x: node.x(),
-                        y: node.y(),
-                        rotation: node.rotation(),
-                        width: newWidth,
-                        height: newHeight,
-                      });
-                    }}
-                  />
-                );
-              } else if (shape.type === "circle") {
-                return (
-                  <Circle
-                    {...commonProps}
-                    radius={(shape as any).radius}
-                    fill={(shape as any).fill}
-                    stroke={(shape as any).stroke}
-                    strokeWidth={(shape as any).strokeWidth}
-                    onTransformEnd={(e) => {
-                      const node = e.target;
-                      const scale = node.scaleX();
-                      const newRadius = (node.radius() as number) * scale;
-                      node.scaleX(1);
-                      node.scaleY(1);
-                      updateShape(shape.id, {
-                        x: node.x(),
-                        y: node.y(),
-                        rotation: node.rotation(),
-                        radius: newRadius,
-                      });
-                    }}
-                  />
-                );
-              } else if (shape.type === "arrow") {
-                return (
-                  <Arrow
-                    {...commonProps}
-                    points={(shape as any).points}
-                    stroke={(shape as any).stroke}
-                    strokeWidth={(shape as any).strokeWidth}
-                    onTransformEnd={(e) => {
-                      const node = e.target;
-                      const points = node.points() as number[];
-                      node.scaleX(1);
-                      node.scaleY(1);
-                      updateShape(shape.id, {
-                        x: node.x(),
-                        y: node.y(),
-                        rotation: node.rotation(),
-                        points,
-                      });
-                    }}
-                  />
-                );
-              } else if (shape.type === "text") {
-                return (
-                  <Text
-                    {...commonProps}
-                    text={(shape as any).text}
-                    fontSize={(shape as any).fontSize}
-                    fill={(shape as any).fill}
-                    onDblClick={(e) => handleTextDblClick(e, shape)}
-                  />
-                );
-              }
-              return null;
-            })}
-            {/* marquee (lasso) drawing */}
-            {marqueeAttrs && (
-              <Rect
-                x={marqueeAttrs.x}
-                y={marqueeAttrs.y}
-                width={marqueeAttrs.width}
-                height={marqueeAttrs.height}
-                fill="rgba(0,0,255,0.1)"
-                stroke="blue"
-                strokeWidth={1}
-                dash={[4, 4]}
-                listening={false}
-              />
-            )}
-            {/* ghost preview for new shapes */}
-            {isDrawing && newAttrs && tool === "rectangle" && (
-              <Rect
-                x={newAttrs.x}
-                y={newAttrs.y}
-                width={newAttrs.width}
-                height={newAttrs.height}
-                fill="rgba(0,0,0,0.1)"
-                stroke="#000"
-                strokeWidth={1}
-                dash={[4, 4]}
-                listening={false}
-              />
-            )}
-            {isDrawing && newAttrs && tool === "circle" && (
-              <Circle
-                x={newAttrs.x}
-                y={newAttrs.y}
-                radius={newAttrs.radius}
-                fill="rgba(0,0,0,0.1)"
-                stroke="#000"
-                strokeWidth={1}
-                dash={[4, 4]}
-                listening={false}
-              />
-            )}
-            {isDrawing && newAttrs && tool === "arrow" && (
-              <Arrow
-                x={newAttrs.x}
-                y={newAttrs.y}
-                points={newAttrs.points}
-                stroke="#000"
-                strokeWidth={1}
-                dash={[4, 4]}
-                listening={false}
-              />
-            )}
-            <Transformer ref={transformerRef} />
-          </Layer>
-        </Stage>
-        {editingId && (
-          <textarea
-            style={textareaStyle}
-            value={editingText}
-            onChange={(e) => setEditingText(e.target.value)}
-            onBlur={finishEditing}
-            onKeyDown={(e) => e.key === "Enter" && finishEditing()}
-            autoFocus
-          />
-        )}
-      </motion.div>
-      
-      <AnimatePresence>
-        {showCodePreview && (
-          <motion.div
-            className="code-preview-wrapper"
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: '50%', opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.5, ease: "easeInOut" }}
+          <Stage
+            width={stageSize.width}
+            height={stageSize.height}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            ref={stageRef}
           >
-            <CodePreview width="100%" />
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Layer>
+              {shapes.map((shape) => {
+                const commonProps = {
+                  key: shape.id,
+                  id: shape.id,
+                  x: shape.x,
+                  y: shape.y,
+                  rotation: shape.rotation,
+                  draggable: tool === "select",
+                  onClick: () => setSelectedId(shape.id),
+                  onTap: () => setSelectedId(shape.id),
+                  onDragEnd: (e: any) => {
+                    updateShape(shape.id, { x: e.target.x(), y: e.target.y() });
+                  },
+                };
+                if (shape.type === "rectangle") {
+                  return (
+                    <Rect
+                      {...commonProps}
+                      width={(shape as any).width}
+                      height={(shape as any).height}
+                      fill={(shape as any).fill}
+                      stroke={(shape as any).stroke}
+                      strokeWidth={(shape as any).strokeWidth}
+                      onTransformEnd={(e) => {
+                        const node = e.target;
+                        const scaleX = node.scaleX();
+                        const scaleY = node.scaleY();
+                        const newWidth = (node.width() as number) * scaleX;
+                        const newHeight = (node.height() as number) * scaleY;
+                        node.scaleX(1);
+                        node.scaleY(1);
+                        updateShape(shape.id, {
+                          x: node.x(),
+                          y: node.y(),
+                          rotation: node.rotation(),
+                          width: newWidth,
+                          height: newHeight,
+                        });
+                      }}
+                    />
+                  );
+                } else if (shape.type === "circle") {
+                  return (
+                    <Circle
+                      {...commonProps}
+                      radius={(shape as any).radius}
+                      fill={(shape as any).fill}
+                      stroke={(shape as any).stroke}
+                      strokeWidth={(shape as any).strokeWidth}
+                      onTransformEnd={(e) => {
+                        const node = e.target;
+                        const scale = node.scaleX();
+                        const newRadius = (node.radius() as number) * scale;
+                        node.scaleX(1);
+                        node.scaleY(1);
+                        updateShape(shape.id, {
+                          x: node.x(),
+                          y: node.y(),
+                          rotation: node.rotation(),
+                          radius: newRadius,
+                        });
+                      }}
+                    />
+                  );
+                } else if (shape.type === "arrow") {
+                  return (
+                    <Arrow
+                      {...commonProps}
+                      points={(shape as any).points}
+                      stroke={(shape as any).stroke}
+                      strokeWidth={(shape as any).strokeWidth}
+                      onTransformEnd={(e) => {
+                        const node = e.target;
+                        const points = node.points() as number[];
+                        node.scaleX(1);
+                        node.scaleY(1);
+                        updateShape(shape.id, {
+                          x: node.x(),
+                          y: node.y(),
+                          rotation: node.rotation(),
+                          points,
+                        });
+                      }}
+                    />
+                  );
+                } else if (shape.type === "text") {
+                  return (
+                    <Text
+                      {...commonProps}
+                      text={(shape as any).text}
+                      fontSize={(shape as any).fontSize}
+                      fill={(shape as any).fill}
+                      onDblClick={(e) => handleTextDblClick(e, shape)}
+                    />
+                  );
+                }
+                return null;
+              })}
+              {/* marquee (lasso) drawing */}
+              {marqueeAttrs && (
+                <Rect
+                  x={marqueeAttrs.x}
+                  y={marqueeAttrs.y}
+                  width={marqueeAttrs.width}
+                  height={marqueeAttrs.height}
+                  fill="rgba(0,0,255,0.1)"
+                  stroke="blue"
+                  strokeWidth={1}
+                  dash={[4, 4]}
+                  listening={false}
+                />
+              )}
+              {/* ghost preview for new shapes */}
+              {isDrawing && newAttrs && tool === "rectangle" && (
+                <Rect
+                  x={newAttrs.x}
+                  y={newAttrs.y}
+                  width={newAttrs.width}
+                  height={newAttrs.height}
+                  fill="rgba(0,0,0,0.1)"
+                  stroke="#000"
+                  strokeWidth={1}
+                  dash={[4, 4]}
+                  listening={false}
+                />
+              )}
+              {isDrawing && newAttrs && tool === "circle" && (
+                <Circle
+                  x={newAttrs.x}
+                  y={newAttrs.y}
+                  radius={newAttrs.radius}
+                  fill="rgba(0,0,0,0.1)"
+                  stroke="#000"
+                  strokeWidth={1}
+                  dash={[4, 4]}
+                  listening={false}
+                />
+              )}
+              {isDrawing && newAttrs && tool === "arrow" && (
+                <Arrow
+                  x={newAttrs.x}
+                  y={newAttrs.y}
+                  points={newAttrs.points}
+                  stroke="#000"
+                  strokeWidth={1}
+                  dash={[4, 4]}
+                  listening={false}
+                />
+              )}
+              <Transformer ref={transformerRef} />
+            </Layer>
+          </Stage>
+          {editingId && (
+            <textarea
+              style={textareaStyle}
+              value={editingText}
+              onChange={(e) => setEditingText(e.target.value)}
+              onBlur={finishEditing}
+              onKeyDown={(e) => e.key === "Enter" && finishEditing()}
+              autoFocus
+            />
+          )}
+        </motion.div>
+        
+        <AnimatePresence>
+          {showCodePreview && (
+            <motion.div
+              className="code-preview-wrapper"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: '40%', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              style={{ width: '100%', borderTop: '1px solid #ddd' }}
+            >
+              <CodePreview width="100%" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </motion.div>
   );
 };

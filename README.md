@@ -17,8 +17,9 @@ https://sketch2react.netlify.app
 - Undo/Redo support
 - Export canvas state to JSON and import from JSON
 - **Convert to React**: Transform your sketches into React components
-- Split-screen layout with code editor
-- Monaco code editor for syntax highlighting
+- Split-screen layout with code editor and live preview
+- Vertical layout with sketch editor on top and code preview at bottom
+- Sandpack code editor for syntax highlighting and live preview
 
 ## Getting Started
 
@@ -84,11 +85,25 @@ src/
 3. Your sketch is serialized to JSON and sent to the GPT4o-mini API
 4. The API returns React component code and preview HTML
 5. The code is displayed in a Monaco editor in the split-screen view
+6. A live preview of the generated React app is shown in an iframe
+
+### API Configuration
+
+The "Convert to React" feature uses OpenAI's GPT4o-mini model to generate React code from your sketch:
+
+1. For full functionality, set your OpenAI API key in an environment variable:
+```
+# Create a .env file in the project root
+VITE_OPENAI_API_KEY=your_openai_api_key_here
+```
+
+2. If no API key is provided, the application will use a built-in mock generator that creates basic React components from your shapes for demonstration purposes.
 
 ### Technical Notes
 
 - Uses Framer Motion for smooth animations between sketch and code views
-- Monaco Editor for code display with syntax highlighting
+- Sandpack for interactive code editor and live preview
+- Vertical split layout with whiteboard on top and code preview at the bottom
 - The project uses Zustand for state management with actions for UI operations and API integration
 - Konva for canvas operations, with refs and transformers for shape manipulation
 - Split-screen layout dynamically resizes the sketch area and code preview

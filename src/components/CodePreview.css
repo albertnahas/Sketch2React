@@ -1,0 +1,32 @@
+/* Import Sandpack styles */
+
+/* Additional custom styles for Sandpack */
+.sandpack {
+  --sp-colors-surface1: #f8f9fb;
+  --sp-colors-surface2: #ebedf0;
+  --sp-colors-accent: #0078cf;
+  --sp-layout-height: 100%;
+}
+
+/* Make sure Sandpack uses all available space */
+.sp-wrapper {
+  height: 100%;
+}
+
+/* Adjustments for the vertical layout */
+.sp-tab-button {
+  font-size: 13px;
+}
+
+.sp-preview-container {
+  padding: 8px;
+}
+
+/* Make sure the iframe has proper height */
+.sp-preview-iframe {
+  height: 100% !important;
+}
+
+.sp-preview-actions {
+  top: 0;
+}

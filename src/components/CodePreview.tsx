@@ -1,6 +1,7 @@
 import React from "react";
-import Editor from "@monaco-editor/react";
-import useStore, { ConversionResult } from "../store/useStore";
+import useStore from "../store/useStore";
+import { Sandpack } from "@codesandbox/sandpack-react";
+import "./CodePreview.css";
 
 interface CodePreviewProps {
   width: string;
@@ -10,17 +11,6 @@ const CodePreview: React.FC<CodePreviewProps> = ({ width }) => {
   const conversionResult = useStore((state) => state.conversionResult);
   const isConverting = useStore((state) => state.isConverting);
   const conversionError = useStore((state) => state.conversionError);
-  const [selectedFile, setSelectedFile] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    // When we get new results, default to the first file
-    if (conversionResult && conversionResult.files) {
-      const fileNames = Object.keys(conversionResult.files);
-      if (fileNames.length > 0) {
-        setSelectedFile(fileNames[0]);
-      }
-    }
-  }, [conversionResult]);
 
   if (isConverting) {
     return (
@@ -56,43 +46,27 @@ const CodePreview: React.FC<CodePreviewProps> = ({ width }) => {
     );
   }
 
-  const { files, previewHTML } = conversionResult;
-  const fileNames = Object.keys(files);
+  const { files } = conversionResult;
 
   return (
     <div className="code-preview-container" style={{ width }}>
-      <div className="code-preview-tabs">
-        {fileNames.map((fileName) => (
-          <button
-            key={fileName}
-            className={selectedFile === fileName ? "active" : ""}
-            onClick={() => setSelectedFile(fileName)}
-          >
-            {fileName}
-          </button>
-        ))}
-      </div>
-      <div className="code-preview-editor">
-        {selectedFile && (
-          <Editor
-            defaultLanguage="typescript"
-            value={files[selectedFile]}
-            options={{
-              readOnly: true,
-              minimap: { enabled: false },
-              fontSize: 14,
-              wordWrap: "on",
-            }}
-          />
-        )}
-      </div>
-      {/* <div className="code-preview-live">
-        <h3>Live Preview</h3>
-        <div
-          className="preview-container"
-          dangerouslySetInnerHTML={{ __html: previewHTML }}
+      <div className="code-editor-preview-container">
+        <div className="code-preview-header">
+          <h3>React Code & Live Preview</h3>
+        </div>
+        <Sandpack
+          template="react-ts"
+          files={files}
+          options={{
+            showLineNumbers: true,
+            showTabs: true,
+            autorun: true,
+            // layout: "preview-bottom"
+          }}
+          theme="light"
+          className="vertical-sandpack"
         />
-      </div> */}
+      </div>
     </div>
   );
 };

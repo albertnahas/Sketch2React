@@ -114,11 +114,44 @@
   border-radius: 4px;
 }
 
-.preview-container {
-  padding: 10px;
-  background: white;
+.code-editor-preview-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.code-preview-header {
+  padding: 10px 0;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 10px;
+}
+
+.code-preview-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.vertical-sandpack {
+  height: calc(100% - 40px);
   border-radius: 4px;
-  min-height: 100px;
+  overflow: hidden;
+}
+
+/* Override Sandpack styles for vertical layout */
+.vertical-sandpack [data-sp-layout="preview-bottom"] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.vertical-sandpack [data-sp-layout="preview-bottom"] > div:first-child {
+  flex: 1.5; /* Editor takes more space */
+}
+
+.vertical-sandpack [data-sp-layout="preview-bottom"] > div:last-child {
+  flex: 1; /* Preview takes less space */
 }
 
 .code-preview-loading {
