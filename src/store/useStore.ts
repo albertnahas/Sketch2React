@@ -186,7 +186,7 @@ const useStore = create<State>((set, get) => ({
           {
             role: "system",
             content: `
-You are a UI code assistant. Given a Konva-stage JSON of shapes and text, infer a meaningful user interface layout:
+You are a UI code assistant. Given a Konva-stage JSON of shapes and text, infer a meaningful modern user interface layout:
 
 • Rectangles become containers or buttons.  
 • Circles become avatars or icons.  
