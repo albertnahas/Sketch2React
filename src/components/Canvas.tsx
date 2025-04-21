@@ -27,6 +27,7 @@ const cursorStyles = {
   circle: "crosshair",
   arrow: "crosshair",
   text: "crosshair",
+  panning: "grabbing", // Use grabbing cursor when panning the canvas
 };
 
 const Canvas = () => {
@@ -63,6 +64,14 @@ const Canvas = () => {
   const showCodePreview = useStore((s) => s.showCodePreview);
   const bringToFront = useStore((s) => s.bringToFront);
 
+  // zoom & pan state for infinite canvas
+  const [stageScale, setStageScale] = useState(1);
+  const [stageX, setStageX] = useState(0);
+  const [stageY, setStageY] = useState(0);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const stagePosStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   // track stage size to make responsive
   const [stageSize, setStageSize] = useState({
     width: window.innerWidth - TOOLBAR_WIDTH,
@@ -109,12 +118,20 @@ const Canvas = () => {
       if (e.key === "Alt" || e.altKey) {
         setIsAltPressed(true);
       }
+      // Track Space key for panning
+      if (e.code === "Space") {
+        setIsSpacePressed(true);
+      }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       // When Alt/Option key is released
       if (e.key === "Alt") {
         setIsAltPressed(false);
+      }
+      // When Space key is released
+      if (e.code === "Space") {
+        setIsSpacePressed(false);
       }
     };
 
@@ -131,7 +148,10 @@ const Canvas = () => {
   useEffect(() => {
     let cursor = cursorStyles.select;
 
-    if (tool !== "select") {
+    // Show panning cursor when panning is active
+    if (isPanning) {
+      cursor = cursorStyles.panning;
+    } else if (tool !== "select") {
       // Drawing tools use crosshair
       cursor = cursorStyles[tool];
     } else {
@@ -150,11 +170,14 @@ const Canvas = () => {
         } else {
           cursor = cursorStyles.selectHover;
         }
+      } else if (isSpacePressed) {
+        // Show grabbing cursor when space is pressed (ready for panning)
+        cursor = cursorStyles.panning;
       }
     }
 
     setCursorType(cursor);
-  }, [tool, hoveredShapeId, selectedId, isDragging, isAltPressed]);
+  }, [tool, hoveredShapeId, selectedId, isDragging, isAltPressed, isPanning, isSpacePressed]);
 
   // Helper function to clone a shape with new position
   const cloneShape = (shapeId: string, newX: number, newY: number) => {
@@ -243,15 +266,30 @@ const Canvas = () => {
     transformer.getLayer()?.batchDraw();
   }, [selectedId, selectedIds, marqueeAttrs, shapes]);
 
+  // get pointer position transformed by pan and zoom
   const getRelativePointerPosition = () => {
     const stage = stageRef.current;
-    const pos = stage?.getPointerPosition();
-    return pos || { x: 0, y: 0 };
+    if (!stage) return { x: 0, y: 0 };
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return { x: 0, y: 0 };
+    // account for stage translation and scale
+    return {
+      x: (pointer.x - stageX) / stageScale,
+      y: (pointer.y - stageY) / stageScale,
+    };
   };
 
   const handleMouseDown = (e: any) => {
-    // Get native event to check modifiers
     const nativeEvent = e.evt;
+    // Start panning when space is held, regardless of current tool
+    if (isSpacePressed) {
+      nativeEvent.preventDefault();
+      setIsPanning(true);
+      panStartRef.current = { x: nativeEvent.clientX, y: nativeEvent.clientY };
+      stagePosStartRef.current = { x: stageX, y: stageY };
+      return;
+    }
+    // Get native event to check modifiers
     const isAltKey = nativeEvent.altKey;
 
     // Track dragging state for cursor changes
@@ -317,8 +355,17 @@ const Canvas = () => {
   };
 
   const handleMouseMove = (e: any) => {
-    const pos = getRelativePointerPosition();
     const nativeEvent = e.evt;
+    // Handle panning
+    if (isPanning) {
+      nativeEvent.preventDefault();
+      const dx = nativeEvent.clientX - panStartRef.current.x;
+      const dy = nativeEvent.clientY - panStartRef.current.y;
+      setStageX(stagePosStartRef.current.x + dx);
+      setStageY(stagePosStartRef.current.y + dy);
+      return;
+    }
+    const pos = getRelativePointerPosition();
     const isAltKey = nativeEvent.altKey || isAltPressed;
 
     // Handle Alt+Drag clone operation
@@ -396,6 +443,11 @@ const Canvas = () => {
   };
 
   const handleMouseUp = () => {
+    // Finish panning
+    if (isPanning) {
+      setIsPanning(false);
+      return;
+    }
     // Reset dragging and cloning states
     setIsDragging(false);
     setClonedShapeId(null);
@@ -494,6 +546,32 @@ const Canvas = () => {
     setIsDrawing(false);
     setNewAttrs(null);
   };
+  // Zoom handler for canvas
+  const handleWheel = (e: any) => {
+    e.evt.preventDefault();
+    const stage = stageRef.current;
+    if (!stage) return;
+    const oldScale = stageScale;
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+    // Calculate pointer position on stage
+    const mousePointTo = {
+      x: (pointer.x - stageX) / oldScale,
+      y: (pointer.y - stageY) / oldScale,
+    };
+    // zoom factor
+    const scaleBy = 1.05;
+    const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
+    const clamped = Math.max(0.1, Math.min(newScale, 10));
+    setStageScale(clamped);
+    // adjust stage position to maintain pointer location
+    const newPos = {
+      x: pointer.x - mousePointTo.x * clamped,
+      y: pointer.y - mousePointTo.y * clamped,
+    };
+    setStageX(newPos.x);
+    setStageY(newPos.y);
+  };
 
   // double-click to edit text
   const handleTextDblClick = (e: any, shape: Shape) => {
@@ -547,6 +625,11 @@ const Canvas = () => {
           <Stage
             width={stageSize.width}
             height={stageSize.height}
+            x={stageX}
+            y={stageY}
+            scaleX={stageScale}
+            scaleY={stageScale}
+            onWheel={handleWheel}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
