@@ -16,6 +16,18 @@ import CodePreview from "./CodePreview";
 
 const TOOLBAR_WIDTH = 200;
 
+// CSS for cursor styles
+const cursorStyles = {
+  select: "default",
+  selectHover: "pointer",
+  selectGrab: "grab",
+  selectGrabbing: "grabbing",
+  rectangle: "crosshair",
+  circle: "crosshair",
+  arrow: "crosshair",
+  text: "crosshair",
+};
+
 const Canvas = () => {
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -26,7 +38,16 @@ const Canvas = () => {
   const [textareaStyle, setTextareaStyle] = useState<React.CSSProperties>({});
   // local multi-selection and marquee (lasso) state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [marqueeAttrs, setMarqueeAttrs] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [marqueeAttrs, setMarqueeAttrs] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  // Dynamic cursor state
+  const [cursorType, setCursorType] = useState<string>("select");
+  const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const shapes = useStore((s) => s.shapes);
   const selectedId = useStore((s) => s.selectedId);
@@ -37,33 +58,105 @@ const Canvas = () => {
   const setSelectedId = useStore((s) => s.setSelectedId);
   const setTool = useStore((s) => s.setTool);
   const showCodePreview = useStore((s) => s.showCodePreview);
+  const bringToFront = useStore((s) => s.bringToFront);
 
   // track stage size to make responsive
   const [stageSize, setStageSize] = useState({
     width: window.innerWidth - TOOLBAR_WIDTH,
     height: window.innerHeight,
   });
-  
+
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth - TOOLBAR_WIDTH;
       let height = window.innerHeight;
-      
+
       if (showCodePreview) {
         // When in preview mode, reduce the height to 60% of the container
         height = height * 0.6;
       }
-      
+
       setStageSize({
         width,
         height,
       });
     };
-    
+
     handleResize(); // Call once to set initial size
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [showCodePreview]);
+
+  // Effect for keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Delete/Backspace for selected shapes
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
+        deleteShape(selectedId);
+      }
+
+      // Tool selection shortcuts
+      if (e.key === "v") setTool("select");
+      if (e.key === "r") setTool("rectangle");
+      if (e.key === "c") setTool("circle");
+      if (e.key === "a") setTool("arrow");
+      if (e.key === "t") setTool("text");
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedId, deleteShape, setTool]);
+
+  // Update cursor based on tool and context
+  useEffect(() => {
+    let cursor = cursorStyles.select;
+
+    if (tool !== "select") {
+      // Drawing tools use crosshair
+      cursor = cursorStyles[tool];
+    } else {
+      // Select tool has different states
+      if (isDragging) {
+        cursor = cursorStyles.selectGrabbing;
+      } else if (hoveredShapeId) {
+        if (hoveredShapeId === selectedId) {
+          cursor = cursorStyles.selectGrab;
+        } else {
+          cursor = cursorStyles.selectHover;
+        }
+      }
+    }
+
+    setCursorType(cursor);
+  }, [tool, hoveredShapeId, selectedId, isDragging]);
+
+  // Find the topmost shape at a point for proper hit testing
+  const getTopmostShapeAt = (pos: { x: number; y: number }): string | null => {
+    const stage = stageRef.current;
+    if (!stage) return null;
+
+    // Get all shapes at this point
+    const shapesAtPoint = stage.getAllIntersections(pos);
+
+    if (shapesAtPoint.length === 0) return null;
+
+    // Find the shape with highest z-index
+    let topShapeId: string | null = null;
+    let highestZIndex = -1;
+
+    for (const shape of shapesAtPoint) {
+      const id = shape.id();
+      if (!id) continue;
+
+      // Find the corresponding shape in our store
+      const storeShape = shapes.find((s) => s.id === id);
+      if (storeShape && storeShape.zIndex > highestZIndex) {
+        highestZIndex = storeShape.zIndex;
+        topShapeId = storeShape.id;
+      }
+    }
+
+    return topShapeId;
+  };
 
   // delete selected shape on Delete key
   useEffect(() => {
@@ -92,10 +185,10 @@ const Canvas = () => {
     // multi-selection
     if (selectedIds.length > 0) {
       nodes = selectedIds
-        .map((id) => layer?.findOne('#' + id))
+        .map((id) => layer?.findOne("#" + id))
         .filter((n): n is Konva.Node => !!n);
     } else if (selectedId) {
-      const node = layer?.findOne('#' + selectedId);
+      const node = layer?.findOne("#" + selectedId);
       if (node) nodes = [node];
     }
     transformer.nodes(nodes);
@@ -109,18 +202,32 @@ const Canvas = () => {
   };
 
   const handleMouseDown = (e: any) => {
+    // Track dragging state for cursor changes
+    if (e.target !== e.target.getStage()) {
+      setIsDragging(true);
+    }
+
     if (tool === "select") {
-      // start marquee selection on empty canvas
+      // If clicked on a shape, bring it to front
+      if (e.target !== e.target.getStage()) {
+        const shapeId = e.target.id();
+        if (shapeId) {
+          bringToFront(shapeId);
+        }
+      }
+
+      // Start marquee selection on empty canvas
       if (e.target === e.target.getStage()) {
         const pos = getRelativePointerPosition();
         setMarqueeAttrs({ x: pos.x, y: pos.y, width: 0, height: 0 });
-        // clear any existing selection
+        // Clear any existing selection
         setSelectedIds([]);
         setSelectedId(null);
       }
       return;
     }
-    // only start drawing on empty area
+
+    // Only start drawing on empty area
     if (e.target !== e.target.getStage()) return;
     const pos = getRelativePointerPosition();
     setIsDrawing(true);
@@ -141,16 +248,24 @@ const Canvas = () => {
         text: "Text",
         fontSize: 20,
         fill: "#000",
+        zIndex: 0, // Will be automatically set to highest+1 by addShape
       });
-      // immediately switch to select for further operations
+      // Immediately switch to select for further operations
       setTool("select");
     }
   };
 
   const handleMouseMove = (e: any) => {
-    // update marquee rectangle while dragging in select mode
+    const pos = getRelativePointerPosition();
+
+    // Handle hover state for cursor changes in select mode
+    if (tool === "select" && !isDrawing && !isDragging) {
+      const hoverShapeId = getTopmostShapeAt(pos);
+      setHoveredShapeId(hoverShapeId);
+    }
+
+    // Update marquee rectangle while dragging in select mode
     if (marqueeAttrs) {
-      const pos = getRelativePointerPosition();
       const startX = marqueeAttrs.x;
       const startY = marqueeAttrs.y;
       let newX = startX;
@@ -168,8 +283,9 @@ const Canvas = () => {
       setMarqueeAttrs({ x: newX, y: newY, width: newW, height: newH });
       return;
     }
+
     if (!isDrawing || !newAttrs) return;
-    const pos = getRelativePointerPosition();
+
     if (tool === "rectangle") {
       setNewAttrs((prev: any) => ({
         ...prev,
@@ -192,15 +308,23 @@ const Canvas = () => {
   };
 
   const handleMouseUp = () => {
-    // finalize marquee selection (lasso)
+    // Reset dragging state for cursor changes
+    setIsDragging(false);
+
+    // Finalize marquee selection (lasso)
     if (marqueeAttrs) {
       const stage = stageRef.current;
       if (stage) {
+        // Find all shapes that intersect with the marquee
         const layer = stage.findOne("Layer");
         const rectA = marqueeAttrs;
         const ids: string[] = [];
-        shapes.forEach((shape) => {
-          const node = layer?.findOne('#' + shape.id) as Konva.Shape;
+
+        // Sort shapes by z-index to ensure proper selection order (top-most first)
+        const sortedShapes = [...shapes].sort((a, b) => b.zIndex - a.zIndex);
+
+        for (const shape of sortedShapes) {
+          const node = layer?.findOne("#" + shape.id) as Konva.Shape;
           if (node) {
             const clientRect = node.getClientRect();
             if (
@@ -212,7 +336,8 @@ const Canvas = () => {
               ids.push(shape.id);
             }
           }
-        });
+        }
+
         setSelectedIds(ids);
         if (ids.length === 1) {
           setSelectedId(ids[0]);
@@ -223,7 +348,9 @@ const Canvas = () => {
       setMarqueeAttrs(null);
       return;
     }
+
     if (!isDrawing || !newAttrs) return;
+
     const id = nanoid();
     if (tool === "rectangle") {
       let { x, y, width, height } = newAttrs;
@@ -246,6 +373,7 @@ const Canvas = () => {
         fill: "transparent",
         stroke: "#000",
         strokeWidth: 2,
+        zIndex: 0, // will be set properly in addShape
       });
     } else if (tool === "circle") {
       addShape({
@@ -258,6 +386,7 @@ const Canvas = () => {
         fill: "transparent",
         stroke: "#000",
         strokeWidth: 2,
+        zIndex: 0, // will be set properly in addShape
       });
     } else if (tool === "arrow") {
       addShape({
@@ -269,8 +398,10 @@ const Canvas = () => {
         rotation: 0,
         stroke: "#000",
         strokeWidth: 2,
+        zIndex: 0, // will be set properly in addShape
       });
     }
+
     setIsDrawing(false);
     setNewAttrs(null);
   };
@@ -307,25 +438,22 @@ const Canvas = () => {
   };
 
   return (
-    <motion.div 
-      className="canvas-container"
-      layout
-    >
+    <motion.div className="canvas-container" layout>
       <motion.div
         className="canvas-content"
-        style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          width: '100%', 
-          height: '100%' 
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          width: "100%",
+          height: "100%",
         }}
       >
         <motion.div
           className="whiteboard-container"
-          initial={{ height: '100%' }}
-          animate={{ height: showCodePreview ? '60%' : '100%' }}
+          initial={{ height: "100%" }}
+          animate={{ height: showCodePreview ? "60%" : "100%" }}
           transition={{ duration: 0.5, ease: "easeInOut" }}
-          style={{ width: '100%' }}
+          style={{ width: "100%" }}
         >
           <Stage
             width={stageSize.width}
@@ -334,106 +462,113 @@ const Canvas = () => {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             ref={stageRef}
+            style={{ cursor: cursorType }}
           >
             <Layer>
-              {shapes.map((shape) => {
-                const commonProps = {
-                  key: shape.id,
-                  id: shape.id,
-                  x: shape.x,
-                  y: shape.y,
-                  rotation: shape.rotation,
-                  draggable: tool === "select",
-                  onClick: () => setSelectedId(shape.id),
-                  onTap: () => setSelectedId(shape.id),
-                  onDragEnd: (e: any) => {
-                    updateShape(shape.id, { x: e.target.x(), y: e.target.y() });
-                  },
-                };
-                if (shape.type === "rectangle") {
-                  return (
-                    <Rect
-                      {...commonProps}
-                      width={(shape as any).width}
-                      height={(shape as any).height}
-                      fill={(shape as any).fill}
-                      stroke={(shape as any).stroke}
-                      strokeWidth={(shape as any).strokeWidth}
-                      onTransformEnd={(e) => {
-                        const node = e.target;
-                        const scaleX = node.scaleX();
-                        const scaleY = node.scaleY();
-                        const newWidth = (node.width() as number) * scaleX;
-                        const newHeight = (node.height() as number) * scaleY;
-                        node.scaleX(1);
-                        node.scaleY(1);
-                        updateShape(shape.id, {
-                          x: node.x(),
-                          y: node.y(),
-                          rotation: node.rotation(),
-                          width: newWidth,
-                          height: newHeight,
-                        });
-                      }}
-                    />
-                  );
-                } else if (shape.type === "circle") {
-                  return (
-                    <Circle
-                      {...commonProps}
-                      radius={(shape as any).radius}
-                      fill={(shape as any).fill}
-                      stroke={(shape as any).stroke}
-                      strokeWidth={(shape as any).strokeWidth}
-                      onTransformEnd={(e) => {
-                        const node = e.target;
-                        const scale = node.scaleX();
-                        const newRadius = (node.radius() as number) * scale;
-                        node.scaleX(1);
-                        node.scaleY(1);
-                        updateShape(shape.id, {
-                          x: node.x(),
-                          y: node.y(),
-                          rotation: node.rotation(),
-                          radius: newRadius,
-                        });
-                      }}
-                    />
-                  );
-                } else if (shape.type === "arrow") {
-                  return (
-                    <Arrow
-                      {...commonProps}
-                      points={(shape as any).points}
-                      stroke={(shape as any).stroke}
-                      strokeWidth={(shape as any).strokeWidth}
-                      onTransformEnd={(e) => {
-                        const node = e.target;
-                        const points = node.points() as number[];
-                        node.scaleX(1);
-                        node.scaleY(1);
-                        updateShape(shape.id, {
-                          x: node.x(),
-                          y: node.y(),
-                          rotation: node.rotation(),
-                          points,
-                        });
-                      }}
-                    />
-                  );
-                } else if (shape.type === "text") {
-                  return (
-                    <Text
-                      {...commonProps}
-                      text={(shape as any).text}
-                      fontSize={(shape as any).fontSize}
-                      fill={(shape as any).fill}
-                      onDblClick={(e) => handleTextDblClick(e, shape)}
-                    />
-                  );
-                }
-                return null;
-              })}
+              {/* Sort shapes by z-index for proper layering - lower z-index renders first */}
+              {[...shapes]
+                .sort((a, b) => a.zIndex - b.zIndex)
+                .map((shape) => {
+                  const commonProps = {
+                    key: shape.id,
+                    id: shape.id,
+                    x: shape.x,
+                    y: shape.y,
+                    rotation: shape.rotation,
+                    draggable: tool === "select",
+                    onClick: () => setSelectedId(shape.id),
+                    onTap: () => setSelectedId(shape.id),
+                    onDragEnd: (e: any) => {
+                      updateShape(shape.id, {
+                        x: e.target.x(),
+                        y: e.target.y(),
+                      });
+                    },
+                  };
+                  if (shape.type === "rectangle") {
+                    return (
+                      <Rect
+                        {...commonProps}
+                        width={(shape as any).width}
+                        height={(shape as any).height}
+                        fill={(shape as any).fill}
+                        stroke={(shape as any).stroke}
+                        strokeWidth={(shape as any).strokeWidth}
+                        onTransformEnd={(e) => {
+                          const node = e.target;
+                          const scaleX = node.scaleX();
+                          const scaleY = node.scaleY();
+                          const newWidth = (node.width() as number) * scaleX;
+                          const newHeight = (node.height() as number) * scaleY;
+                          node.scaleX(1);
+                          node.scaleY(1);
+                          updateShape(shape.id, {
+                            x: node.x(),
+                            y: node.y(),
+                            rotation: node.rotation(),
+                            width: newWidth,
+                            height: newHeight,
+                          });
+                        }}
+                      />
+                    );
+                  } else if (shape.type === "circle") {
+                    return (
+                      <Circle
+                        {...commonProps}
+                        radius={(shape as any).radius}
+                        fill={(shape as any).fill}
+                        stroke={(shape as any).stroke}
+                        strokeWidth={(shape as any).strokeWidth}
+                        onTransformEnd={(e) => {
+                          const node = e.target;
+                          const scale = node.scaleX();
+                          const newRadius = (node.radius() as number) * scale;
+                          node.scaleX(1);
+                          node.scaleY(1);
+                          updateShape(shape.id, {
+                            x: node.x(),
+                            y: node.y(),
+                            rotation: node.rotation(),
+                            radius: newRadius,
+                          });
+                        }}
+                      />
+                    );
+                  } else if (shape.type === "arrow") {
+                    return (
+                      <Arrow
+                        {...commonProps}
+                        points={(shape as any).points}
+                        stroke={(shape as any).stroke}
+                        strokeWidth={(shape as any).strokeWidth}
+                        onTransformEnd={(e) => {
+                          const node = e.target;
+                          const points = node.points() as number[];
+                          node.scaleX(1);
+                          node.scaleY(1);
+                          updateShape(shape.id, {
+                            x: node.x(),
+                            y: node.y(),
+                            rotation: node.rotation(),
+                            points,
+                          });
+                        }}
+                      />
+                    );
+                  } else if (shape.type === "text") {
+                    return (
+                      <Text
+                        {...commonProps}
+                        text={(shape as any).text}
+                        fontSize={(shape as any).fontSize}
+                        fill={(shape as any).fill}
+                        onDblClick={(e) => handleTextDblClick(e, shape)}
+                      />
+                    );
+                  }
+                  return null;
+                })}
               {/* marquee (lasso) drawing */}
               {marqueeAttrs && (
                 <Rect
@@ -499,16 +634,16 @@ const Canvas = () => {
             />
           )}
         </motion.div>
-        
+
         <AnimatePresence>
           {showCodePreview && (
             <motion.div
               className="code-preview-wrapper"
               initial={{ height: 0, opacity: 0 }}
-              animate={{ height: '40%', opacity: 1 }}
+              animate={{ height: "40%", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.5, ease: "easeInOut" }}
-              style={{ width: '100%', borderTop: '1px solid #ddd' }}
+              style={{ width: "100%", borderTop: "1px solid #ddd" }}
             >
               <CodePreview width="100%" />
             </motion.div>

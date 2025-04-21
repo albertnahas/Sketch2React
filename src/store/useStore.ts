@@ -10,6 +10,7 @@ export interface BaseShape {
   x: number;
   y: number;
   rotation: number;
+  zIndex: number;
 }
 
 export interface RectShape extends BaseShape {
@@ -77,6 +78,8 @@ interface State {
   importJSON: (shapes: Shape[]) => void;
   convertToReact: () => Promise<void>;
   setShowCodePreview: (show: boolean) => void;
+  bringToFront: (id: string) => void;
+  getMaxZIndex: () => number;
 }
 
 const useStore = create<State>((set, get) => ({
@@ -96,7 +99,7 @@ const useStore = create<State>((set, get) => ({
     const { shapes, selectedId, past } = get();
     set({
       past: [...past, { shapes: shapes.slice(), selectedId }],
-      shapes: [...shapes, shape],
+      shapes: [...shapes, { ...shape, zIndex: get().getMaxZIndex() + 1 }],
       selectedId: shape.id,
       future: [],
     });
@@ -170,12 +173,12 @@ const useStore = create<State>((set, get) => ({
 
     try {
       set({ isConverting: true, conversionError: null });
-      
+
       let result;
-      
+
       // Check if an API key is available
       const apiKey = import.meta.env?.VITE_OPENAI_API_KEY;
-      
+
       if (apiKey) {
         // Use the real OpenAI API
         const sketchJSON = JSON.stringify(shapes);
@@ -260,7 +263,9 @@ Return EXACTLY this JSON schema (no extra keys, no commentary):
         result = JSON.parse(choices[0].message.content);
       } else {
         // Use the mock response generator if no API key is available
-        console.log("No API key found, using mock response generator for demonstration");
+        console.log(
+          "No API key found, using mock response generator for demonstration"
+        );
         result = await generateMockResponse(shapes);
       }
 
@@ -277,6 +282,26 @@ Return EXACTLY this JSON schema (no extra keys, no commentary):
           error instanceof Error ? error.message : "Unknown error",
       });
     }
+  },
+  bringToFront: (id) => {
+    const { shapes } = get();
+    const targetShape = shapes.find((shape) => shape.id === id);
+    if (!targetShape) return;
+
+    const maxZIndex = Math.max(...shapes.map((shape) => shape.zIndex));
+    if (targetShape.zIndex === maxZIndex) return;
+
+    set({
+      shapes: shapes.map((shape) =>
+        shape.id === id ? { ...shape, zIndex: maxZIndex + 1 } : shape
+      ),
+    });
+  },
+  getMaxZIndex: () => {
+    const { shapes } = get();
+    return shapes.length > 0
+      ? Math.max(...shapes.map((shape) => shape.zIndex))
+      : 0;
   },
 }));
 
