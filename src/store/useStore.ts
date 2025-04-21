@@ -79,6 +79,9 @@ interface State {
   convertToReact: () => Promise<void>;
   setShowCodePreview: (show: boolean) => void;
   bringToFront: (id: string) => void;
+  // whether to use Tailwind CSS in generated code
+  useTailwind: boolean;
+  setUseTailwind: (use: boolean) => void;
   getMaxZIndex: () => number;
 }
 
@@ -92,6 +95,9 @@ const useStore = create<State>((set, get) => ({
   isConverting: false,
   conversionResult: null,
   conversionError: null,
+  // whether to use Tailwind CSS in generated React code
+  useTailwind: true,
+  setUseTailwind: (use) => set({ useTailwind: use }),
 
   setTool: (tool) => set({ tool, selectedId: null }),
 
@@ -182,10 +188,9 @@ const useStore = create<State>((set, get) => ({
       if (apiKey) {
         // Use the real OpenAI API
         const sketchJSON = JSON.stringify(shapes);
-        const messages = [
-          {
-            role: "system",
-            content: `
+        // Prepare system prompt, including Tailwind CSS instructions if enabled
+        const useTailwind = get().useTailwind;
+        let systemContent = `
 You are a UI code assistant. Given a Konva-stage JSON of shapes and text, infer a meaningful user interface layout:
 
 • Rectangles become containers or buttons.  
@@ -199,7 +204,13 @@ Matches the provided layout as much as possible.
 
 1. Uses semantic HTML elements (<button>, <img>, <input>, <header>, <section>, etc.).  
 2. Assigns valid placeholder images where circles occur. From https://picsum.photos or https://avatar.iran.liara.run/public/ 
-3. Lays out components to match the spatial arrangement of the shapes pixel perfect.  
+3. Lays out components to match the spatial arrangement of the shapes pixel perfect.`.trim();
+        if (useTailwind) {
+          systemContent += `
+
+Additionally, incorporate Tailwind CSS utility classes for styling, include a Tailwind configuration file (tailwind.config.js), and import the generated Tailwind CSS in your project's entry point.`;
+        }
+        systemContent += `
 
 Return EXACTLY this JSON schema (no extra keys, no commentary):
 \`\`\`json
@@ -210,9 +221,9 @@ Return EXACTLY this JSON schema (no extra keys, no commentary):
   },
   "previewHTML": "<string: HTML to mount React app>"
 }
-\`\`\`
-          `.trim(),
-          },
+\`\`\``;
+        const messages = [
+          { role: "system", content: systemContent.trim() },
           { role: "user", content: sketchJSON },
         ];
 

@@ -60,6 +60,9 @@ const Toolbar: React.FC = () => {
   const handleTogglePreview = () => {
     setShowCodePreview(!showCodePreview);
   };
+  // Tailwind CSS toggle
+  const useTailwind = useStore((state) => state.useTailwind);
+  const setUseTailwind = useStore((state) => state.setUseTailwind);
 
   return (
     <div className="toolbar">
@@ -111,6 +114,17 @@ const Toolbar: React.FC = () => {
             {showCodePreview ? 'Hide Preview' : 'Show Preview'}
           </button>
         )}
+        {/* Tailwind CSS toggle */}
+        <div style={{ marginTop: 4 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <input
+              type="checkbox"
+              checked={useTailwind}
+              onChange={(e) => setUseTailwind(e.target.checked)}
+            />
+            Use Tailwind CSS
+          </label>
+        </div>
         {/* show warning when conversion limit is reached */}
         {convertCount >= MAX_CONVERTS && (
           <div style={{ color: 'red', marginTop: 4, fontSize: 12 }}>
