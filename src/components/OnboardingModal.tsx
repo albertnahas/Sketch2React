@@ -343,85 +343,81 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => {
               {/* Step 3: Converting to code */}
               {currentStep === 3 && (
                 <>
+                  {/* UI Card Background */}
                   <Rect
-                    x={50}
-                    y={50}
-                    width={stageSize.width - 100}
-                    height={100}
+                    x={80}
+                    y={60}
+                    width={stageSize.width - 160}
+                    height={170}
+                    cornerRadius={10}
                     fill="white"
-                    stroke="#ddd"
-                    strokeWidth={2}
-                  />
-                  <Rect
-                    x={50}
-                    y={150}
-                    width={stageSize.width - 100}
-                    height={120}
-                    fill="#f8f8f8"
-                    stroke="#ddd"
-                    strokeWidth={2}
+                    stroke="#ccc"
                   />
 
+                  {/* Avatar */}
                   <Circle
-                    x={250}
+                    x={110}
                     y={100}
-                    radius={22}
-                    fill="transparent"
-                    stroke="#333"
-                    strokeWidth={2}
+                    radius={20}
+                    fill="#eee"
+                    stroke="#aaa"
+                    strokeWidth={1}
                   />
-                  <Rect
-                    x={150}
-                    y={70}
-                    width={60}
-                    height={60}
-                    fill="transparent"
-                    stroke="#333"
-                    strokeWidth={2}
+                  <Text
+                    text="👤"
+                    x={98}
+                    y={88}
+                    fontSize={24}
+                    fontFamily="Arial"
+                    fill="#666"
                   />
 
+                  {/* Name */}
                   <Text
-                    text="<div className='container'>"
-                    x={100}
-                    y={180}
-                    fontFamily="monospace"
-                    fontSize={12}
+                    text="John Doe"
+                    x={150}
+                    y={80}
+                    fontSize={18}
+                    fontStyle="bold"
+                    fontFamily="Arial"
+                    fill="#333"
+                  />
+
+                  {/* Description */}
+                  <Text
+                    text="UI Designer @Sketch2React"
+                    x={150}
+                    y={105}
+                    fontSize={14}
+                    fontFamily="Arial"
                     fill="#777"
                   />
+
+                  {/* Code snippet box */}
+                  <Rect
+                    x={50}
+                    y={240}
+                    width={stageSize.width - 100}
+                    height={50}
+                    fill="#f4f4f4"
+                    stroke="#ddd"
+                    strokeWidth={1}
+                  />
                   <Text
-                    text="  <button> Book Now </button>"
-                    x={120}
-                    y={200}
+                    text="<ProfileCard user={john} />"
+                    x={60}
+                    y={255}
                     fontFamily="monospace"
                     fontSize={12}
                     fill="#777"
                     visible={animationProgress > 0.7}
                   />
-                  <Text
-                    text={
-                      '  <img className="avatar" src="..." alt="Avatar" />'
-                    }
-                    x={120}
-                    y={220}
-                    fontFamily="monospace"
-                    fontSize={12}
-                    fill="#777"
-                    visible={animationProgress > 0.8}
-                  />
-                  <Text
-                    text="</div>"
-                    x={100}
-                    y={240}
-                    fontFamily="monospace"
-                    fontSize={12}
-                    fill="#777"
-                    visible={animationProgress > 0.9}
-                  />
 
+                  {/* Preview button */}
                   <Group>
                     <Rect
-                      x={350}
-                      y={175}
+                      x={240}
+                      y={180}
                       width={100}
                       height={30}
                       cornerRadius={4}
@@ -433,8 +429,8 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => {
                     />
                     <Text
                       text="Preview"
-                      x={370}
-                      y={185}
+                      x={260}
+                      y={188}
                       fontFamily="sans-serif"
                       fontSize={14}
                       fill="white"
