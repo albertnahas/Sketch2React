@@ -61,10 +61,12 @@ const CodePreview: React.FC<CodePreviewProps> = ({ width }) => {
             showLineNumbers: true,
             showTabs: true,
             autorun: true,
-            // layout: "preview-bottom"
           }}
           theme="light"
           className="vertical-sandpack"
+          // customSetup={{
+          //   entry: "App.tsx",
+          // }}
         />
       </div>
     </div>

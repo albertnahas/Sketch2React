@@ -22,6 +22,7 @@ const cursorStyles = {
   selectHover: "pointer",
   selectGrab: "grab",
   selectGrabbing: "grabbing",
+  selectClone: "copy", // Special cursor for Alt+drag cloning
   rectangle: "crosshair",
   circle: "crosshair",
   arrow: "crosshair",
@@ -48,6 +49,8 @@ const Canvas = () => {
   const [cursorType, setCursorType] = useState<string>("select");
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isAltPressed, setIsAltPressed] = useState(false);
+  const [clonedShapeId, setClonedShapeId] = useState<string | null>(null);
 
   const shapes = useStore((s) => s.shapes);
   const selectedId = useStore((s) => s.selectedId);
@@ -101,9 +104,27 @@ const Canvas = () => {
       if (e.key === "c") setTool("circle");
       if (e.key === "a") setTool("arrow");
       if (e.key === "t") setTool("text");
+
+      // Track Alt/Option key for cloning
+      if (e.key === "Alt" || e.altKey) {
+        setIsAltPressed(true);
+      }
     };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // When Alt/Option key is released
+      if (e.key === "Alt") {
+        setIsAltPressed(false);
+      }
+    };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
   }, [selectedId, deleteShape, setTool]);
 
   // Update cursor based on tool and context
@@ -116,10 +137,16 @@ const Canvas = () => {
     } else {
       // Select tool has different states
       if (isDragging) {
-        cursor = cursorStyles.selectGrabbing;
+        // Show clone cursor when Alt is pressed while dragging
+        cursor = isAltPressed
+          ? cursorStyles.selectClone
+          : cursorStyles.selectGrabbing;
       } else if (hoveredShapeId) {
         if (hoveredShapeId === selectedId) {
-          cursor = cursorStyles.selectGrab;
+          // Show clone cursor when Alt is pressed over a selected shape
+          cursor = isAltPressed
+            ? cursorStyles.selectClone
+            : cursorStyles.selectGrab;
         } else {
           cursor = cursorStyles.selectHover;
         }
@@ -127,7 +154,28 @@ const Canvas = () => {
     }
 
     setCursorType(cursor);
-  }, [tool, hoveredShapeId, selectedId, isDragging]);
+  }, [tool, hoveredShapeId, selectedId, isDragging, isAltPressed]);
+
+  // Helper function to clone a shape with new position
+  const cloneShape = (shapeId: string, newX: number, newY: number) => {
+    const originalShape = shapes.find((s) => s.id === shapeId);
+    if (!originalShape) return null;
+
+    // Create a new ID for the clone
+    const id = nanoid();
+
+    // Deep copy the shape and update its position
+    const clonedShape = {
+      ...JSON.parse(JSON.stringify(originalShape)),
+      id,
+      x: newX,
+      y: newY,
+    };
+
+    // Add the cloned shape to the canvas
+    addShape(clonedShape);
+    return id;
+  };
 
   // Find the topmost shape at a point for proper hit testing
   const getTopmostShapeAt = (pos: { x: number; y: number }): string | null => {
@@ -202,9 +250,24 @@ const Canvas = () => {
   };
 
   const handleMouseDown = (e: any) => {
+    // Get native event to check modifiers
+    const nativeEvent = e.evt;
+    const isAltKey = nativeEvent.altKey;
+
     // Track dragging state for cursor changes
     if (e.target !== e.target.getStage()) {
       setIsDragging(true);
+
+      // If Alt/Option key is pressed while clicking on a shape, prepare for cloning
+      if (isAltKey && tool === "select") {
+        const shapeId = e.target.id();
+        if (shapeId) {
+          setClonedShapeId(shapeId);
+
+          // Prevent default behavior to avoid stage dragging
+          nativeEvent.preventDefault();
+        }
+      }
     }
 
     if (tool === "select") {
@@ -227,8 +290,6 @@ const Canvas = () => {
       return;
     }
 
-    // Only start drawing on empty area
-    if (e.target !== e.target.getStage()) return;
     const pos = getRelativePointerPosition();
     setIsDrawing(true);
     if (tool === "rectangle") {
@@ -257,6 +318,33 @@ const Canvas = () => {
 
   const handleMouseMove = (e: any) => {
     const pos = getRelativePointerPosition();
+    const nativeEvent = e.evt;
+    const isAltKey = nativeEvent.altKey || isAltPressed;
+
+    // Handle Alt+Drag clone operation
+    if (clonedShapeId && isDragging && isAltKey) {
+      const originalShape = shapes.find((s) => s.id === clonedShapeId);
+
+      if (originalShape && !marqueeAttrs) {
+        // Calculate the distance moved
+        const deltaX = pos.x - originalShape.x;
+        const deltaY = pos.y - originalShape.y;
+
+        // If mouse has moved enough to create a clone (prevent accidental clones)
+        if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+          // Create the clone at the current mouse position
+          const newShapeId = cloneShape(clonedShapeId, pos.x, pos.y);
+
+          if (newShapeId) {
+            // Update selection to the new shape
+            setSelectedId(newShapeId);
+
+            // Reset cloned shape ID to prevent multiple clones in one drag
+            setClonedShapeId(null);
+          }
+        }
+      }
+    }
 
     // Handle hover state for cursor changes in select mode
     if (tool === "select" && !isDrawing && !isDragging) {
@@ -308,8 +396,9 @@ const Canvas = () => {
   };
 
   const handleMouseUp = () => {
-    // Reset dragging state for cursor changes
+    // Reset dragging and cloning states
     setIsDragging(false);
+    setClonedShapeId(null);
 
     // Finalize marquee selection (lasso)
     if (marqueeAttrs) {
@@ -469,6 +558,9 @@ const Canvas = () => {
               {[...shapes]
                 .sort((a, b) => a.zIndex - b.zIndex)
                 .map((shape) => {
+                  const isSelected =
+                    shape.id === selectedId || selectedIds.includes(shape.id);
+
                   const commonProps = {
                     key: shape.id,
                     id: shape.id,
@@ -476,14 +568,45 @@ const Canvas = () => {
                     y: shape.y,
                     rotation: shape.rotation,
                     draggable: tool === "select",
-                    onClick: () => setSelectedId(shape.id),
+                    onClick: (e: any) => {
+                      // Check if Alt key is pressed during click for instant clone
+                      if (e.evt.altKey && tool === "select") {
+                        const pos = getRelativePointerPosition();
+                        // Clone the shape slightly offset from original
+                        const newShapeId = cloneShape(
+                          shape.id,
+                          pos.x + 10,
+                          pos.y + 10
+                        );
+                        if (newShapeId) {
+                          setSelectedId(newShapeId);
+                        }
+                      } else {
+                        setSelectedId(shape.id);
+                      }
+                    },
                     onTap: () => setSelectedId(shape.id),
+                    onMouseDown: (e: any) => {
+                      if (e.evt.altKey && tool === "select") {
+                        // Prepare for drag-clone operation
+                        setClonedShapeId(shape.id);
+                      }
+                    },
+                    onDragStart: () => {
+                      setIsDragging(true);
+                      if (isAltPressed) {
+                        setClonedShapeId(shape.id);
+                      }
+                    },
                     onDragEnd: (e: any) => {
+                      setIsDragging(false);
                       updateShape(shape.id, {
                         x: e.target.x(),
                         y: e.target.y(),
                       });
                     },
+                    onMouseEnter: () => setHoveredShapeId(shape.id),
+                    onMouseLeave: () => setHoveredShapeId(null),
                   };
                   if (shape.type === "rectangle") {
                     return (
