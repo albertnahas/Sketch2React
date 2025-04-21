@@ -6,6 +6,10 @@ A powerful whiteboard application built with React, TypeScript, Vite, and React-
 
 https://sketch2react.netlify.app
 
+Here’s a quick demo:
+
+![Project Demo](./demo.gif)
+
 ## Features
 
 - Toolbox sidebar with drawing tools: select, rectangle, circle, arrow, text
@@ -92,6 +96,7 @@ src/
 The "Convert to React" feature uses OpenAI's GPT4o-mini model to generate React code from your sketch:
 
 1. For full functionality, set your OpenAI API key in an environment variable:
+
 ```
 # Create a .env file in the project root
 VITE_OPENAI_API_KEY=your_openai_api_key_here
