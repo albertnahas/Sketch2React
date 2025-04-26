@@ -2,31 +2,83 @@
 
 /* Additional custom styles for Sandpack */
 .sandpack {
-  --sp-colors-surface1: #f8f9fb;
-  --sp-colors-surface2: #ebedf0;
-  --sp-colors-accent: #0078cf;
+  --sp-colors-surface1: #1a1b26;
+  --sp-colors-surface2: #24283b;
+  --sp-colors-accent: #7aa2f7;
+  --sp-colors-text: #a9b1d6;
+  --sp-colors-hover: #414868;
+  --sp-colors-clickable: #c0caf5;
+  --sp-colors-disabled: #565f89;
+  --sp-colors-error: #f7768e;
+  --sp-colors-errorSurface: #24283b;
   --sp-layout-height: 100%;
+  --sp-border-radius: 8px;
 }
 
 /* Make sure Sandpack uses all available space */
 .sp-wrapper {
   height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 /* Adjustments for the vertical layout */
 .sp-tab-button {
   font-size: 13px;
+  border-radius: 4px 4px 0 0 !important;
+  margin-right: 4px !important;
 }
 
 .sp-preview-container {
   padding: 8px;
+  background: #1a1a1a !important;
 }
 
 /* Make sure the iframe has proper height */
 .sp-preview-iframe {
   height: 100% !important;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .sp-preview-actions {
-  top: 0;
+  top: 8px;
+  right: 8px;
+  backdrop-filter: blur(6px);
+  background-color: rgba(36, 40, 59, 0.8) !important;
+  border-radius: 4px !important;
+  padding: 2px !important;
+}
+
+.code-preview-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #0f0f1a;
+  overflow: hidden;
+}
+
+.code-editor-preview-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.code-preview-header {
+  padding: 12px 16px;
+  background-color: #1a1b26;
+  border-bottom: 1px solid #272b3b;
+}
+
+.code-preview-header h3 {
+  margin: 0;
+  color: #c0caf5;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.vertical-sandpack {
+  flex-grow: 1;
+  position: relative;
 }

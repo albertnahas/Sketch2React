@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Stage, Layer, Rect, Circle, Arrow, Text, Group } from "react-konva";
 import { motion, AnimatePresence } from "framer-motion";
+import "./MagicComponents/animations.css";
 
 interface OnboardingModalProps {
   onClose: () => void;

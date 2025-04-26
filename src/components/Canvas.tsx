@@ -13,6 +13,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import useStore, { Shape } from "../store/useStore";
 import { nanoid } from "nanoid/non-secure";
 import CodePreview from "./CodePreview";
+import {
+  MagicCanvasEffects,
+  CustomCursor,
+  ZoomIndicator,
+  ToolIndicator,
+} from "./MagicComponents";
+import "./MagicComponents/CanvasEffects.css";
+import "./MagicComponents/CanvasEffects.css";
 
 const TOOLBAR_WIDTH = 200;
 
@@ -612,15 +620,81 @@ const Canvas = () => {
     setEditingText("");
   };
 
+  // Track mouse position for effects
+  const [mousePosition, setMousePosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Update mouse position for effects
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, []);
+
+  // Show tool indicator briefly when tool changes
+  const [showToolIndicator, setShowToolIndicator] = useState(false);
+
+  useEffect(() => {
+    setShowToolIndicator(true);
+    const timer = setTimeout(() => {
+      setShowToolIndicator(false);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [tool]);
+
   return (
     <motion.div className="flex-1 relative flex overflow-hidden" layout>
       <motion.div className="flex flex-col w-full h-full">
         <motion.div
-          className="relative h-full w-full"
+          className="canvas-container relative h-full w-full"
           initial={{ height: "100%" }}
           animate={{ height: showCodePreview ? "60%" : "100%" }}
           transition={{ duration: 0.5, ease: "easeInOut" }}
         >
+          {/* Canvas Magic Effects Layer */}
+          <MagicCanvasEffects
+            width={stageSize.width}
+            height={stageSize.height}
+            shapes={shapes}
+            selectedId={selectedId}
+            tool={tool}
+            isDrawing={isDrawing}
+            mousePosition={mousePosition}
+            stageScale={stageScale}
+            stageX={stageX}
+            stageY={stageY}
+          />
+
+          {/* Custom Magic Cursor */}
+          <CustomCursor
+            tool={tool}
+            isDragging={isDragging}
+            isSpacePressed={isSpacePressed}
+            isPanning={isPanning}
+          />
+
+          {/* Tool Indicator - shows current tool */}
+          {mousePosition && (
+            <ToolIndicator
+              tool={tool}
+              x={mousePosition.x}
+              y={mousePosition.y}
+              visible={showToolIndicator}
+            />
+          )}
+
+          {/* Zoom Indicator */}
+          <ZoomIndicator scale={stageScale} visible={isPanning} />
+
+          {/* Main Konva Stage */}
           <Stage
             width={stageSize.width}
             height={stageSize.height}
@@ -633,7 +707,7 @@ const Canvas = () => {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             ref={stageRef}
-            style={{ cursor: cursorType }}
+            style={{ cursor: "none" /* hide default cursor, we use custom */ }}
           >
             <Layer>
               {/* Sort shapes by z-index for proper layering - lower z-index renders first */}

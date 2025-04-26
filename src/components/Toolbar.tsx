@@ -1,5 +1,9 @@
 import React, { useRef, useState, useEffect } from "react";
 import useStore from "../store/useStore";
+import { ShimmerButton, PulsatingButton, RainbowButton } from "./MagicComponents";
+import AnimatedShinyText from "./MagicComponents/AnimatedShinyText";
+import AuroraText from "./MagicComponents/AuroraText";
+import "./MagicComponents/animations.css";
 
 const Toolbar: React.FC = () => {
   const tool = useStore((state) => state.tool);
@@ -62,49 +66,69 @@ const Toolbar: React.FC = () => {
   };
 
   return (
-    <div className="w-[200px] bg-gray-100 p-2.5 box-border border-r border-gray-300 z-10 flex flex-col">
-      <div className="flex flex-col">
+    <div className="w-[200px] bg-gray-800 p-3 box-border border-r border-gray-700 z-10 flex flex-col text-white">
+      <h3 className="font-bold mb-3 text-center text-lg">
+        <span className="animate-shimmer-text bg-clip-text bg-[length:200px_100%] bg-gradient-to-r from-transparent via-purple-500 to-transparent">
+          Sketch
+        </span>
+        <span className="text-blue-400">2</span>
+        <span className="animate-shimmer-text bg-clip-text bg-[length:200px_100%] bg-gradient-to-r from-transparent via-orange-500 to-transparent">
+          React
+        </span>
+      </h3>
+      <div className="flex flex-col space-y-2">
         {["select", "rectangle", "circle", "arrow", "text"].map((t) => (
           <button
             key={t}
-            onClick={() => setTool(t)}
-            className={`block w-full my-1 p-1.5 box-border bg-white border border-gray-300 cursor-pointer ${
-              tool === t ? "bg-gray-200" : ""
+            onClick={() => setTool(t as "select" | "rectangle" | "circle" | "arrow" | "text")}
+            className={`block w-full my-1 p-2 box-border rounded bg-gray-700 border border-gray-600 cursor-pointer hover:bg-gray-600 transition-colors ${
+              tool === t ? "bg-blue-600 border-blue-500 text-white" : ""
             }`}
           >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
+            <span className="relative overflow-hidden inline-block">
+              <span className={`animate-shimmer-text bg-clip-text bg-[length:100px_100%]
+                ${tool === t ? "bg-gradient-to-r from-transparent via-white/80 to-transparent" : ""}`}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </span>
+            </span>
           </button>
         ))}
       </div>
-      <hr className="border-none border-t border-gray-300 my-2" />
-      <div className="flex flex-col">
-        <button
+      
+      <hr className="border-none border-t border-gray-700 my-3" />
+      
+      <div className="flex justify-between space-x-2">
+        <RainbowButton
           onClick={undo}
-          className="block w-full my-1 p-1.5 box-border bg-white border border-gray-300 cursor-pointer"
+          className="flex-1 h-10 py-0 text-sm"
         >
           Undo
-        </button>
-        <button
-          onClick={redo}
-          className="block w-full my-1 p-1.5 box-border bg-white border border-gray-300 cursor-pointer"
+        </RainbowButton>
+        <RainbowButton
+          onClick={redo} 
+          className="flex-1 h-10 py-0 text-sm"
         >
           Redo
-        </button>
+        </RainbowButton>
       </div>
-      <hr className="border-none border-t border-gray-300 my-2" />
-      <div className="flex flex-col">
-        <button
+      
+      <hr className="border-none border-t border-gray-700 my-3" />
+      
+      <div className="flex flex-col space-y-2">
+        <PulsatingButton
           onClick={exportJSON}
-          className="block w-full my-1 p-1.5 box-border bg-white border border-gray-300 cursor-pointer"
+          className="w-full text-gray-800" 
+          pulseColor="#4ade80"
         >
           Export JSON
-        </button>
-        <button
+        </PulsatingButton>
+        <PulsatingButton
           onClick={handleImportClick}
-          className="block w-full my-1 p-1.5 box-border bg-white border border-gray-300 cursor-pointer"
+          className="w-full text-gray-800"
+          pulseColor="#60a5fa"
         >
           Import JSON
-        </button>
+        </PulsatingButton>
         <input
           ref={fileInputRef}
           type="file"
@@ -113,32 +137,41 @@ const Toolbar: React.FC = () => {
           onChange={handleFileChange}
         />
       </div>
-      <hr className="border-none border-t border-gray-300 my-2" />
-      <div className="flex flex-col">
-        <button
+      
+      <hr className="border-none border-t border-gray-700 my-3" />
+      
+      <div className="flex flex-col space-y-2">
+        <ShimmerButton
           onClick={handleConvertClick}
-          disabled={
-            shapes.length === 0 || isConverting || convertCount >= MAX_CONVERTS
-          }
-          className={`block w-full my-1 p-1.5 box-border bg-white border border-gray-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed
-            ${isConverting ? "relative overflow-hidden bg-gray-100" : ""}`}
+          disabled={shapes.length === 0 || isConverting || convertCount >= MAX_CONVERTS}
+          className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
+          shimmerColor={isConverting ? "#60a5fa" : "#f97316"}
+          background={shapes.length === 0 || convertCount >= MAX_CONVERTS ? "#4b5563" : "#18181b"}
         >
           {isConverting ? "Converting..." : "Convert to React"}
-        </button>
+        </ShimmerButton>
+        
         {showCodePreview && (
           <button
             onClick={handleTogglePreview}
-            className="block w-full my-1 p-1.5 box-border bg-white border border-gray-300 cursor-pointer"
+            className="block w-full my-1 p-2 rounded bg-gray-700 border border-gray-600 cursor-pointer hover:bg-gray-600 transition-colors"
           >
             {showCodePreview ? "Hide Preview" : "Show Preview"}
           </button>
         )}
-        {/* show warning when conversion limit is reached */}
-        {convertCount >= MAX_CONVERTS && (
-          <div style={{ color: "red", marginTop: 4, fontSize: 12 }}>
-            Conversion limit of {MAX_CONVERTS} reached.
-          </div>
-        )}
+        
+        {/* Show conversion count with animated text */}
+        <div className="text-center mt-2 text-sm">
+          {convertCount >= MAX_CONVERTS ? (
+            <AuroraText colors={["#ef4444", "#f97316", "#ef4444", "#dc2626"]} speed={1.5} className="text-sm">
+              Conversion limit reached
+            </AuroraText>
+          ) : (
+            <AnimatedShinyText className="text-sm">
+              {MAX_CONVERTS - convertCount} conversions left
+            </AnimatedShinyText>
+          )}
+        </div>
       </div>
     </div>
   );

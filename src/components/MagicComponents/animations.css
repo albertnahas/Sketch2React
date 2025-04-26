@@ -1,0 +1,124 @@
+// Add animation keyframes to global stylesheets
+@keyframes shimmer-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes spin-around {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rainbow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes rippling {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes shiny-text {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes aurora {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ping {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-shimmer-slide {
+  animation: shimmer-slide 2s infinite;
+}
+
+.animate-spin-around {
+  animation: spin-around 3s linear infinite;
+}
+
+.animate-rainbow {
+  animation: rainbow 4s linear infinite;
+}
+
+.animate-rippling {
+  animation: rippling 600ms linear;
+}
+
+.animate-shiny-text {
+  animation: shiny-text 3s ease infinite;
+}
+
+.animate-shimmer-text {
+  animation: shiny-text 2s ease-in-out infinite;
+}
+
+.animate-aurora {
+  animation: aurora 10s ease infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-ping {
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.animate-spin {
+  animation: spin-around 1s linear infinite;
+}

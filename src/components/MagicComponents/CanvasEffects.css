@@ -1,0 +1,202 @@
+/* Canvas Effects CSS */
+
+.canvas-container {
+  position: relative;
+  overflow: hidden;
+  background-color: #111827;
+  background-image: 
+    radial-gradient(at 10% 10%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+    radial-gradient(at 90% 20%, rgba(236, 72, 153, 0.1) 0px, transparent 50%),
+    radial-gradient(at 20% 80%, rgba(34, 211, 238, 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 90%, rgba(250, 204, 21, 0.1) 0px, transparent 50%);
+  transition: all 0.3s ease;
+}
+
+.canvas-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    transparent,
+    transparent 19px,
+    rgba(255, 255, 255, 0.03) 19px,
+    rgba(255, 255, 255, 0.03) 20px
+  ),
+  repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 19px,
+    rgba(255, 255, 255, 0.03) 19px,
+    rgba(255, 255, 255, 0.03) 20px
+  );
+  pointer-events: none;
+}
+
+/* Shape animations */
+@keyframes shape-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.shape-new {
+  animation: shape-appear 0.3s ease-out forwards;
+}
+
+/* Selection indicator styles */
+.selection-indicator {
+  pointer-events: none;
+  position: absolute;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+/* Tool indicator styles */
+.tool-indicator {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: rgba(17, 24, 39, 0.8);
+  color: white;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  transform-origin: center bottom;
+}
+
+.tool-indicator.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.tool-indicator.hide {
+  transform: translateY(10px);
+  opacity: 0;
+}
+
+/* Pan/zoom indicators */
+.canvas-zoom-indicator {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background-color: rgba(17, 24, 39, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 10;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+.canvas-zoom-indicator.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.canvas-zoom-indicator.hide {
+  transform: translateY(10px);
+  opacity: 0;
+}
+
+/* Mouse trail effect */
+.mouse-trail {
+  position: fixed;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Custom cursor */
+.konvajs-content {
+  cursor: none !important;
+}
+
+.custom-cursor {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid white;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: difference;
+  transition: width 0.1s, height 0.1s, border-color 0.2s;
+}
+
+.custom-cursor.rectangle {
+  width: 16px;
+  height: 16px;
+  border-radius: 0;
+  border-color: #6366f1;
+}
+
+.custom-cursor.circle {
+  border-color: #ec4899;
+}
+
+.custom-cursor.arrow {
+  width: 25px;
+  height: 25px;
+  border-color: #22d3ee;
+}
+
+.custom-cursor.text {
+  width: 10px;
+  height: 20px;
+  border-radius: 0;
+  border-color: #facc15;
+}
+
+.custom-cursor.select {
+  width: 15px;
+  height: 15px;
+  border-color: white;
+}
+
+.custom-cursor.grabbing {
+  border-color: #60a5fa;
+  width: 25px;
+  height: 25px;
+}
+
+/* Custom scroll effects */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
