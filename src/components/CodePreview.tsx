@@ -54,20 +54,21 @@ const CodePreview: React.FC<CodePreviewProps> = ({ width }) => {
         <div className="code-preview-header">
           <h3>React Code & Live Preview</h3>
         </div>
-        <Sandpack
-          template="react-ts"
-          files={files}
-          options={{
-            showLineNumbers: true,
-            showTabs: true,
-            autorun: true,
-          }}
-          theme="light"
-          className="vertical-sandpack"
-          // customSetup={{
-          //   entry: "App.tsx",
-          // }}
-        />
+        <div className="vertical-sandpack">
+          <Sandpack
+            template="react-ts"
+            files={files}
+            options={{
+              showLineNumbers: true,
+              showTabs: true,
+              autorun: true,
+            }}
+            theme="light"
+            // customSetup={{
+            //   entry: "App.tsx",
+            // }}
+          />
+        </div>
       </div>
     </div>
   );

@@ -177,7 +177,15 @@ const Canvas = () => {
     }
 
     setCursorType(cursor);
-  }, [tool, hoveredShapeId, selectedId, isDragging, isAltPressed, isPanning, isSpacePressed]);
+  }, [
+    tool,
+    hoveredShapeId,
+    selectedId,
+    isDragging,
+    isAltPressed,
+    isPanning,
+    isSpacePressed,
+  ]);
 
   // Helper function to clone a shape with new position
   const cloneShape = (shapeId: string, newX: number, newY: number) => {
@@ -605,22 +613,13 @@ const Canvas = () => {
   };
 
   return (
-    <motion.div className="canvas-container" layout>
-      <motion.div
-        className="canvas-content"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          width: "100%",
-          height: "100%",
-        }}
-      >
+    <motion.div className="flex-1 relative flex overflow-hidden" layout>
+      <motion.div className="flex flex-col w-full h-full">
         <motion.div
-          className="whiteboard-container"
+          className="relative h-full w-full"
           initial={{ height: "100%" }}
           animate={{ height: showCodePreview ? "60%" : "100%" }}
           transition={{ duration: 0.5, ease: "easeInOut" }}
-          style={{ width: "100%" }}
         >
           <Stage
             width={stageSize.width}
@@ -844,12 +843,11 @@ const Canvas = () => {
         <AnimatePresence>
           {showCodePreview && (
             <motion.div
-              className="code-preview-wrapper"
+              className="w-full overflow-hidden border-t border-gray-300"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "40%", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.5, ease: "easeInOut" }}
-              style={{ width: "100%", borderTop: "1px solid #ddd" }}
             >
               <CodePreview width="100%" />
             </motion.div>
